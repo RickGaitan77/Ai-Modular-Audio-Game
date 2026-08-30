@@ -47,7 +47,7 @@
     .log-player { align-self: flex-end; background: #1f2937; padding: 10px 16px; border-radius: 14px 14px 2px 14px; font-size: 14px; color: var(--neon-green); max-width: 85%; border: 1px solid #374151; }
     .cora-banner { background: rgba(0, 242, 254, 0.08); border: 1px solid var(--cyan); padding: 10px 14px; border-radius: 8px; font-size: 13px; color: var(--cyan); line-height: 1.4; }
 
-    /* Action Cards */
+    /* Enlarged Tactical HUD Cards */
     .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px 16px; background: #0c1017; border-top: 1px solid var(--card-border); }
     .action-card { 
       background: var(--card-bg); 
@@ -74,7 +74,7 @@
       border-radius: 10px; 
       font-weight: 800; 
       font-size: 15px; 
-      letter-spacing: 0.5px;
+      letter-spacing: 0.5px; 
       display: flex; 
       justify-content: center; 
       align-items: center; 
@@ -122,7 +122,7 @@
 
   <!-- Main Narrative Stream -->
   <div id="log-stream">
-    <div class="cora-banner">🤖 C.O.R.A.: Neural link standby. Enter your key above to establish live link.</div>
+    <!-- Clean initial log stream -->
   </div>
 
   <!-- 4 Action Cards -->
@@ -157,22 +157,29 @@
     let isListening = false;
     let chatHistory = [];
 
-    const SYSTEM_PROMPT = `You are the GM & Audio Director for "Aethelgard Extraction", an audio-first voice RPG. 
-Player: Silas Vance. Objective: Infiltrate Sub-Level 4, extract Dr. Elena Ramos.
-Pacing rule: Spoken response strictly 2-3 sentences. Always end with an immediate acoustic cue or question.
-Ignore filler words.
-You MUST output a JSON block at the very start of every reply:
+    // Deep, immersive, sensory-rich RPG Game Master & Audio Director Prompt
+    const SYSTEM_PROMPT = `You are the Game Master and Audio Director for "Aethelgard Extraction", an intensely atmospheric, tactical sci-fi voice RPG.
+Player Character: Specialist Silas Vance.
+Objective: Infiltrate Sub-Level 4 of the submerged Aethelgard facility, eliminate rogue biological and automated threats, and safely extract Dr. Elena Ramos.
+Companion: C.O.R.A. (Cybernetic Operations Recon Assistant) - sharp, tactical, dry-humored, analytical synthetic voice directly in Vance's ear.
+
+STYLE & AUDIO-FIRST DIRECTIVES:
+1. SENSORY & ACOUSTIC STORYTELLING: Bring the world alive with visceral sound descriptions—distant bulkheads groaning under oceanic pressure, fluorescent tube flickering, charging capacitor hums, wet chitin scraping on grated metal, echoing gunshots.
+2. PACING: Keep responses rich, cinematic, and punchy (3-4 vivid sentences). Never pad with fluff; let sensory details create the tension.
+3. CONVERSATIONAL BANTER: Integrate C.O.R.A.'s commentary and tactical advisories naturally into the scene.
+4. TACTICAL CRISIS: Always conclude each narration with immediate situational momentum, a rising acoustic hazard, or a clear tactical dilemma for Vance to react to.
+5. JSON TRIGGER PROTOCOL: You MUST start every response with a raw JSON block wrapped in \`\`\`json ... \`\`\` specifying audio cues, HUD updates, and vitals before writing your narrative text:
+
 \`\`\`json
 {
   "events": [
-    {"tool": "set_ambient_state", "track_id": "sector_a_airlock_drip", "tension_level": "low"},
+    {"tool": "set_ambient_state", "track_id": "sector_a_airlock_drip", "tension_level": "medium"},
     {"tool": "trigger_sfx", "sound_id": "airlock_decompress", "pan": 0.0, "volume": 0.8},
     {"tool": "update_player_vitals", "hp": 100, "energy": 100, "mags": 3, "stims": 1},
     {"tool": "update_hud_cards", "cards": ["⚡ Kinetic Overcharge", "📡 Biometric Sonar", "🌀 Phase Dash", "🔫 Mag-Slugger AP"]}
   ]
 }
-\`\`\`
-Followed immediately by your 2-3 sentence narration.`;
+\`\`\``;
 
     function initApp() {
       const key = document.getElementById("api-key").value.trim();
@@ -181,7 +188,7 @@ Followed immediately by your 2-3 sentence narration.`;
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       document.getElementById("config-modal").style.display = "none";
       setupSpeech();
-      sendToGemini("Specialist Silas Vance boots down on Sub-Level 4 outer airlock. Systems online.");
+      sendToGemini("Specialist Silas Vance boots down on Sub-Level 4 outer airlock. Primary systems online. C.O.R.A., status report.");
     }
 
     // Audio SFX Synthesizer
@@ -288,7 +295,7 @@ Followed immediately by your 2-3 sentence narration.`;
       stream.scrollTop = stream.scrollHeight;
     }
 
-    // Call Gemini 2.5 Flash Endpoint
+    // Call Gemini 3.6 Flash Endpoint
     async function sendToGemini(userText) {
       chatHistory.push({ role: "user", parts: [{ text: userText }] });
 
