@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Aethelgard Extraction - Tactical HUD</title>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #131a24;
+      --card-border: #243244;
+      --cyan: #00f2fe;
+      --neon-green: #00ff88;
+      --alert-red: #ff3366;
+      --amber: #ffaa00;
+      --text: #f0f6fc;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
+    body { background: var(--bg); color: var(--text); display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+    
+    /* Config Modal */
+    #config-modal {
+      position: absolute; inset: 0; background: rgba(7, 9, 14, 0.96); z-index: 100;
+      display: flex; flex-direction: column; justify-content: center; align-items: center; padding: 24px;
+    }
+    .modal-box { background: var(--card-bg); border: 1.5px solid var(--cyan); padding: 24px; border-radius: 12px; width: 100%; max-width: 420px; text-align: center; box-shadow: 0 0 30px rgba(0, 242, 254, 0.2); }
+    .modal-box input { width: 100%; padding: 14px; margin: 16px 0; background: #05070a; border: 1px solid var(--card-border); color: #fff; border-radius: 8px; font-size: 15px; }
+    .modal-box button { width: 100%; padding: 14px; background: var(--cyan); color: #000; font-weight: 800; font-size: 14px; letter-spacing: 1px; border: none; border-radius: 8px; cursor: pointer; }
+
+    /* Top Status */
+    header { padding: 12px 16px; background: #0c1017; border-bottom: 1px solid var(--card-border); display: flex; justify-content: space-between; align-items: center; }
+    .sector { font-size: 13px; letter-spacing: 1px; color: var(--cyan); font-weight: 700; }
+    .audio-badge { font-size: 11px; background: rgba(0, 242, 254, 0.1); color: var(--cyan); padding: 4px 10px; border-radius: 12px; border: 1px solid var(--cyan); font-weight: 600; }
+
+    /* Vitals Dashboard */
+    .vitals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 16px; background: #0f141d; border-bottom: 1px solid var(--card-border); }
+    .vital-bar { background: #000; height: 14px; border-radius: 7px; overflow: hidden; border: 1px solid var(--card-border); margin-top: 4px; }
+    .fill-hp { width: 100%; height: 100%; background: var(--alert-red); transition: width 0.3s; }
+    .fill-eng { width: 100%; height: 100%; background: var(--cyan); transition: width 0.3s; }
+    .vital-label { font-size: 12px; display: flex; justify-content: space-between; color: var(--muted); font-weight: bold; }
+    .counters { display: flex; gap: 16px; grid-column: span 2; font-size: 13px; justify-content: space-around; padding-top: 6px; border-top: 1px solid var(--card-border); font-weight: bold; }
+
+    /* Main Story Feed */
+    #log-stream { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .log-gm { background: var(--card-bg); padding: 14px 16px; border-left: 4px solid var(--cyan); border-radius: 0 10px 10px 0; font-size: 15px; line-height: 1.45; border-top: 1px solid var(--card-border); border-bottom: 1px solid var(--card-border); border-right: 1px solid var(--card-border); }
+    .log-player { align-self: flex-end; background: #1f2937; padding: 10px 16px; border-radius: 14px 14px 2px 14px; font-size: 14px; color: var(--neon-green); max-width: 85%; border: 1px solid #374151; }
+    .cora-banner { background: rgba(0, 242, 254, 0.08); border: 1px solid var(--cyan); padding: 10px 14px; border-radius: 8px; font-size: 13px; color: var(--cyan); line-height: 1.4; }
+
+    /* Action Cards */
+    .card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px 16px; background: #0c1017; border-top: 1px solid var(--card-border); }
+    .action-card { 
+      background: var(--card-bg); 
+      border: 1.5px solid var(--card-border); 
+      border-radius: 10px; 
+      padding: 12px; 
+      display: flex; 
+      flex-direction: column; 
+      justify-content: space-between;
+      min-height: 72px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    .card-title { font-weight: 700; color: #fff; font-size: 13px; line-height: 1.25; }
+    .card-status { font-size: 11px; color: var(--neon-green); font-weight: 600; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+    /* Bottom Voice & Controls */
+    footer { padding: 14px 16px; background: #07090e; display: flex; gap: 10px; align-items: center; border-top: 1px solid var(--card-border); }
+    #voice-btn { 
+      flex: 1; 
+      padding: 16px; 
+      background: #15803d; 
+      color: #fff; 
+      border: none; 
+      border-radius: 10px; 
+      font-weight: 800; 
+      font-size: 15px; 
+      letter-spacing: 0.5px;
+      display: flex; 
+      justify-content: center; 
+      align-items: center; 
+      gap: 10px; 
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3);
+    }
+    #voice-btn.recording { background: var(--alert-red); animation: pulse 1.2s infinite; box-shadow: 0 0 16px rgba(255, 51, 102, 0.6); }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+  </style>
+</head>
+<body>
+
+  <!-- Config Modal -->
+  <div id="config-modal">
+    <div class="modal-box">
+      <h2 style="color: var(--cyan); margin-bottom: 8px; font-size: 20px;">AETHELGARD EXTRACTION</h2>
+      <p style="font-size: 13px; color: var(--muted); margin-bottom: 8px;">Plug in headphones. Paste your Gemini API key below to link tactical comms.</p>
+      <input type="password" id="api-key" placeholder="AIzaSy...">
+      <button onclick="initApp()">INITIALIZE HUD & AUDIO</button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header>
+    <div class="sector" id="sector-tag">📍 SECTOR A: AIRLOCK DOCK</div>
+    <div class="audio-badge">🔊 3D SPATIAL AUDIO</div>
+  </header>
+
+  <!-- Vitals Dashboard -->
+  <div class="vitals-grid">
+    <div>
+      <div class="vital-label"><span>VANCE HP</span><span id="hp-txt" style="color:var(--alert-red)">100%</span></div>
+      <div class="vital-bar"><div class="fill-hp" id="hp-fill"></div></div>
+    </div>
+    <div>
+      <div class="vital-label"><span>SUIT ENERGY</span><span id="eng-txt" style="color:var(--cyan)">100%</span></div>
+      <div class="vital-bar"><div class="fill-eng" id="eng-fill"></div></div>
+    </div>
+    <div class="counters">
+      <div>💉 STIMS: <span id="stims-cnt" style="color:var(--cyan)">1</span></div>
+      <div>📦 MAGS: <span id="mags-cnt" style="color:var(--neon-green)">3</span></div>
+    </div>
+  </div>
+
+  <!-- Main Narrative Stream -->
+  <div id="log-stream">
+    <div class="cora-banner">🤖 C.O.R.A.: Neural link standby. Enter your key above to establish live link.</div>
+  </div>
+
+  <!-- 4 Action Cards -->
+  <div class="card-grid">
+    <div class="action-card">
+      <span class="card-title" id="c1-title">⚡ Kinetic Overcharge</span>
+      <span class="card-status" id="c1-status">25 Energy · Ready</span>
+    </div>
+    <div class="action-card">
+      <span class="card-title" id="c2-title">📡 Biometric Sonar</span>
+      <span class="card-status" id="c2-status">15 Energy · Ready</span>
+    </div>
+    <div class="action-card">
+      <span class="card-title" id="c3-title">🌀 Phase Dash</span>
+      <span class="card-status" id="c3-status">Cooldown 0s · Ready</span>
+    </div>
+    <div class="action-card">
+      <span class="card-title" id="c4-title">🔫 Mag-Slugger AP</span>
+      <span class="card-status" id="c4-status">Chamber Loaded</span>
+    </div>
+  </div>
+
+  <!-- Bottom Voice Controls -->
+  <footer>
+    <button id="voice-btn" onclick="toggleSpeech()">🎙️ TAP TO SPEAK</button>
+  </footer>
+
+  <script>
+    let API_KEY = "";
+    let audioCtx;
+    let recognition;
+    let isListening = false;
+    let chatHistory = [];
+
+    const SYSTEM_PROMPT = `You are the GM & Audio Director for "Aethelgard Extraction", an audio-first voice RPG. 
+Player: Silas Vance. Objective: Infiltrate Sub-Level 4, extract Dr. Elena Ramos.
+Pacing rule: Spoken response strictly 2-3 sentences. Always end with an immediate acoustic cue or question.
+Ignore filler words.
+You MUST output a JSON block at the very start of every reply:
+\`\`\`json
+{
+  "events": [
+    {"tool": "set_ambient_state", "track_id": "sector_a_airlock_drip", "tension_level": "low"},
+    {"tool": "trigger_sfx", "sound_id": "airlock_decompress", "pan": 0.0, "volume": 0.8},
+    {"tool": "update_player_vitals", "hp": 100, "energy": 100, "mags": 3, "stims": 1},
+    {"tool": "update_hud_cards", "cards": ["⚡ Kinetic Overcharge", "📡 Biometric Sonar", "🌀 Phase Dash", "🔫 Mag-Slugger AP"]}
+  ]
+}
+\`\`\`
+Followed immediately by your 2-3 sentence narration.`;
+
+    function initApp() {
+      const key = document.getElementById("api-key").value.trim();
+      if (!key) return alert("Please enter your Gemini API key.");
+      API_KEY = key;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      document.getElementById("config-modal").style.display = "none";
+      setupSpeech();
+      sendToGemini("Specialist Silas Vance boots down on Sub-Level 4 outer airlock. Systems online.");
+    }
+
+    // Audio SFX Synthesizer
+    function playSpatialSound(type, pan = 0) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const panner = audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+
+      if (type === "airlock_decompress") {
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 1.2);
+        gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
+      } else if (type === "sonar_ping_active") {
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.8);
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+      } else if (type === "mag_slugger_fire") {
+        osc.type = "square";
+        osc.frequency.setValueAtTime(160, audioCtx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(25, audioCtx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+      } else {
+        osc.type = "triangle";
+        osc.frequency.setValueAtTime(220, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+      }
+
+      if (panner) {
+        panner.pan.value = Math.max(-1, Math.min(1, pan));
+        osc.connect(gain);
+        gain.connect(panner);
+        panner.connect(audioCtx.destination);
+      } else {
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+      }
+
+      osc.start();
+      osc.stop(audioCtx.currentTime + 1.2);
+    }
+
+    // Speech Recognition
+    function setupSpeech() {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRecognition) return;
+      recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onstart = () => {
+        isListening = true;
+        const btn = document.getElementById("voice-btn");
+        btn.textContent = "🛑 LISTENING...";
+        btn.classList.add("recording");
+      };
+
+      recognition.onresult = (e) => {
+        const text = e.results[0][0].transcript;
+        addLog(text, "player");
+        sendToGemini(text);
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        const btn = document.getElementById("voice-btn");
+        btn.textContent = "🎙️ TAP TO SPEAK";
+        btn.classList.remove("recording");
+      };
+      
+      recognition.onerror = (e) => {
+        isListening = false;
+        const btn = document.getElementById("voice-btn");
+        btn.textContent = "🎙️ TAP TO SPEAK";
+        btn.classList.remove("recording");
+      };
+    }
+
+    function toggleSpeech() {
+      if (!recognition) {
+        const manualText = prompt("Speech input not available. Enter your action:");
+        if (manualText) {
+          addLog(manualText, "player");
+          sendToGemini(manualText);
+        }
+        return;
+      }
+      if (isListening) recognition.stop();
+      else recognition.start();
+    }
+
+    function addLog(text, sender) {
+      const stream = document.getElementById("log-stream");
+      const div = document.createElement("div");
+      div.className = sender === "player" ? "log-player" : "log-gm";
+      div.textContent = text;
+      stream.appendChild(div);
+      stream.scrollTop = stream.scrollHeight;
+    }
+
+    // Call Gemini 2.5 Flash Endpoint
+    async function sendToGemini(userText) {
+      chatHistory.push({ role: "user", parts: [{ text: userText }] });
+
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
+            contents: chatHistory
+          })
+        });
+
+        const data = await res.json();
+        
+        if (data.error) {
+          addLog(`Comms Error: ${data.error.message || "Invalid API configuration"}`, "gm");
+          return;
+        }
+
+        if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+          addLog("Neural link returned empty transmission.", "gm");
+          return;
+        }
+
+        const rawReply = data.candidates[0].content.parts[0].text;
+        chatHistory.push({ role: "model", parts: [{ text: rawReply }] });
+
+        let spokenText = rawReply;
+        const jsonMatch = rawReply.match(/```json([\s\S]*?)```/);
+        if (jsonMatch) {
+          try {
+            const parsed = JSON.parse(jsonMatch[1]);
+            if (parsed.events) {
+              parsed.events.forEach(ev => {
+                if (ev.tool === "trigger_sfx") playSpatialSound(ev.sound_id, ev.pan || 0);
+                if (ev.tool === "update_player_vitals") {
+                  document.getElementById("hp-fill").style.width = ev.hp + "%";
+                  document.getElementById("hp-txt").textContent = ev.hp + "%";
+                  document.getElementById("eng-fill").style.width = ev.energy + "%";
+                  document.getElementById("eng-txt").textContent = ev.energy + "%";
+                  document.getElementById("mags-cnt").textContent = ev.mags;
+                  document.getElementById("stims-cnt").textContent = ev.stims;
+                }
+                if (ev.tool === "update_hud_cards" && ev.cards) {
+                  document.getElementById("c1-title").textContent = ev.cards[0] || "";
+                  document.getElementById("c2-title").textContent = ev.cards[1] || "";
+                  document.getElementById("c3-title").textContent = ev.cards[2] || "";
+                  document.getElementById("c4-title").textContent = ev.cards[3] || "";
+                }
+              });
+            }
+            spokenText = rawReply.replace(jsonMatch[0], "").trim();
+          } catch(e) {}
+        }
+
+        addLog(spokenText, "gm");
+        speakOutput(spokenText);
+      } catch (err) {
+        addLog("Comms error connecting to neural server. Check network connection or API key.", "gm");
+      }
+    }
+
+    // Voice Output via Text-to-Speech
+    function speakOutput(text) {
+      if (!window.speechSynthesis) return;
+      window.speechSynthesis.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 1.05;
+      u.pitch = 0.95;
+      window.speechSynthesis.speak(u);
+    }
+  </script>
+</body>
+</html>
