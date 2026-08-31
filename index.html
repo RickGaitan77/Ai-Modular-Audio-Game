@@ -62,7 +62,7 @@
     .card-title { font-weight: 700; color: #fff; font-size: 13px; line-height: 1.25; }
     .card-status { font-size: 11px; color: var(--neon-green); font-weight: 600; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 
-    /* Bottom Voice & Controls */
+    /* Bottom Voice Controls */
     footer { padding: 14px 16px; background: #07090e; display: flex; gap: 10px; align-items: center; border-top: 1px solid var(--card-border); }
     #voice-btn { 
       flex: 1; 
@@ -82,6 +82,7 @@
       box-shadow: 0 4px 12px rgba(21, 128, 61, 0.3);
     }
     #voice-btn.recording { background: var(--alert-red); animation: pulse 1.2s infinite; box-shadow: 0 0 16px rgba(255, 51, 102, 0.6); }
+    #voice-btn:disabled { background: #374151; color: var(--muted); cursor: not-allowed; box-shadow: none; }
     @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
   </style>
 </head>
@@ -152,6 +153,7 @@
     let audioCtx = null;
     let recognition;
     let isListening = false;
+    let isProcessing = false;
     let chatHistory = [];
 
     const SYSTEM_PROMPT = `You are the Game Master and Audio Director for "Aethelgard Extraction", an intensely atmospheric, tactical sci-fi voice RPG.
@@ -195,7 +197,7 @@ STYLE & AUDIO-FIRST DIRECTIVES:
       sendToGemini("Specialist Silas Vance boots down on Sub-Level 4 outer airlock. Primary systems online. C.O.R.A., status report.");
     }
 
-    // Audio SFX Synthesizer with Mobile Safe Stop
+    // Audio SFX Synthesizer
     function playSpatialSound(type, pan = 0) {
       if (!audioCtx) return;
       if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -203,32 +205,32 @@ STYLE & AUDIO-FIRST DIRECTIVES:
       const osc = audioCtx.createOscillator();
       const gain = audioCtx.createGain();
       const now = audioCtx.currentTime;
-      let dur = 0.5;
+      let dur = 0.4;
 
       if (type === "airlock_decompress") {
-        osc.type = "sawtooth";
-        osc.frequency.setValueAtTime(120, now);
-        osc.frequency.exponentialRampToValueAtTime(30, now + 0.8);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(80, now + 0.5);
         gain.gain.setValueAtTime(0.2, now);
-        gain.gain.linearRampToValueAtTime(0.001, now + 0.8);
-        dur = 0.8;
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.5);
+        dur = 0.5;
       } else if (type === "sonar_ping_active") {
         osc.type = "sine";
-        osc.frequency.setValueAtTime(880, now);
-        osc.frequency.exponentialRampToValueAtTime(440, now + 0.4);
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.linearRampToValueAtTime(0.001, now + 0.4);
-        dur = 0.4;
+        osc.frequency.setValueAtTime(900, now);
+        osc.frequency.exponentialRampToValueAtTime(450, now + 0.3);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.3);
+        dur = 0.3;
       } else if (type === "mag_slugger_fire") {
-        osc.type = "square";
-        osc.frequency.setValueAtTime(160, now);
-        osc.frequency.exponentialRampToValueAtTime(25, now + 0.2);
-        gain.gain.setValueAtTime(0.3, now);
-        gain.gain.linearRampToValueAtTime(0.001, now + 0.2);
-        dur = 0.2;
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(140, now);
+        osc.frequency.exponentialRampToValueAtTime(30, now + 0.15);
+        gain.gain.setValueAtTime(0.35, now);
+        gain.gain.linearRampToValueAtTime(0.001, now + 0.15);
+        dur = 0.15;
       } else {
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(220, now);
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(440, now);
         gain.gain.setValueAtTime(0.1, now);
         gain.gain.linearRampToValueAtTime(0.001, now + 0.2);
         dur = 0.2;
@@ -276,19 +278,26 @@ STYLE & AUDIO-FIRST DIRECTIVES:
       recognition.onend = () => {
         isListening = false;
         const btn = document.getElementById("voice-btn");
-        btn.textContent = "🎙️ TAP TO SPEAK";
         btn.classList.remove("recording");
+        if (!isProcessing) {
+          btn.textContent = "🎙️ TAP TO SPEAK";
+          btn.disabled = false;
+        }
       };
       
       recognition.onerror = () => {
         isListening = false;
         const btn = document.getElementById("voice-btn");
-        btn.textContent = "🎙️ TAP TO SPEAK";
         btn.classList.remove("recording");
+        if (!isProcessing) {
+          btn.textContent = "🎙️ TAP TO SPEAK";
+          btn.disabled = false;
+        }
       };
     }
 
     function toggleSpeech() {
+      if (isProcessing) return;
       if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
 
       if (!recognition) {
@@ -312,9 +321,15 @@ STYLE & AUDIO-FIRST DIRECTIVES:
       stream.scrollTop = stream.scrollHeight;
     }
 
-    // Call Gemini 3.6 Flash Endpoint
+    // Call Gemini 3.6 Flash Endpoint with Request Throttling
     async function sendToGemini(userText) {
+      isProcessing = true;
+      const btn = document.getElementById("voice-btn");
+      btn.textContent = "📡 CONNECTING...";
+      btn.disabled = true;
+
       chatHistory.push({ role: "user", parts: [{ text: userText }] });
+      const boundedHistory = chatHistory.slice(-6);
 
       const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${API_KEY}`;
 
@@ -324,7 +339,7 @@ STYLE & AUDIO-FIRST DIRECTIVES:
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
-            contents: chatHistory
+            contents: boundedHistory
           })
         });
 
@@ -332,11 +347,13 @@ STYLE & AUDIO-FIRST DIRECTIVES:
         
         if (data.error) {
           addLog(`Comms Error: ${data.error.message || "Invalid API configuration"}`, "gm");
+          resetButton();
           return;
         }
 
         if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
           addLog("Neural link returned empty transmission.", "gm");
+          resetButton();
           return;
         }
 
@@ -375,7 +392,17 @@ STYLE & AUDIO-FIRST DIRECTIVES:
         speakOutput(spokenText);
       } catch (err) {
         addLog("Comms error connecting to neural server. Check network connection or API key.", "gm");
+      } finally {
+        resetButton();
       }
+    }
+
+    function resetButton() {
+      isProcessing = false;
+      const btn = document.getElementById("voice-btn");
+      btn.textContent = "🎙️ TAP TO SPEAK";
+      btn.disabled = false;
+      btn.classList.remove("recording");
     }
 
     // Voice Output via Text-to-Speech
