@@ -331,7 +331,7 @@ STYLE & AUDIO-FIRST DIRECTIVES:
       chatHistory.push({ role: "user", parts: [{ text: userText }] });
       const boundedHistory = chatHistory.slice(-6);
 
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${API_KEY}`;
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
 
       try {
         const res = await fetch(endpoint, {
