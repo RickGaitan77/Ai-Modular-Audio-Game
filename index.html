@@ -194,7 +194,12 @@ STYLE & AUDIO-FIRST DIRECTIVES:
       document.getElementById("log-stream").innerHTML = "";
 
       setupSpeech();
-      sendToGemini("Specialist Silas Vance boots down on Sub-Level 4 outer airlock. Primary systems online. C.O.R.A., status report.");
+
+      // Zero-quota local startup intro
+      playSpatialSound("airlock_decompress", 0);
+      const intro = "Airlock seal disengaged. Systems calibrated. Vance, we have successfully breached Sub-Level 4. Facility power is flickering and I'm detecting irregular bio-signatures past the blast door. What is your order?";
+      addLog(intro, "gm");
+      speakOutput(intro);
     }
 
     // Audio SFX Synthesizer
@@ -322,7 +327,7 @@ STYLE & AUDIO-FIRST DIRECTIVES:
       stream.scrollTop = stream.scrollHeight;
     }
 
-    // Model Endpoint Targeting Active Tier
+    // Call Gemini 3.6 Flash Endpoint
     async function sendToGemini(userText) {
       if (isProcessing) return;
       isProcessing = true;
@@ -334,8 +339,7 @@ STYLE & AUDIO-FIRST DIRECTIVES:
       chatHistory.push({ role: "user", parts: [{ text: userText }] });
       const boundedHistory = chatHistory.slice(-4);
 
-      // Targeting the active current model
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${API_KEY}`;
 
       try {
         const res = await fetch(endpoint, {
