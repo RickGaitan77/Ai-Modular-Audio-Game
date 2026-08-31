@@ -288,6 +288,7 @@ STYLE & AUDIO-FIRST DIRECTIVES:
       recognition.onerror = () => {
         isListening = false;
         const btn = document.getElementById("voice-btn");
+        btn.textContent = "🎙️ TAP TO SPEAK";
         btn.classList.remove("recording");
         if (!isProcessing) {
           btn.textContent = "🎙️ TAP TO SPEAK";
@@ -321,17 +322,20 @@ STYLE & AUDIO-FIRST DIRECTIVES:
       stream.scrollTop = stream.scrollHeight;
     }
 
-    // Call Gemini 3.6 Flash Endpoint with Request Throttling
+    // Model Endpoint Targeting Active Tier
     async function sendToGemini(userText) {
+      if (isProcessing) return;
       isProcessing = true;
+
       const btn = document.getElementById("voice-btn");
       btn.textContent = "📡 CONNECTING...";
       btn.disabled = true;
 
       chatHistory.push({ role: "user", parts: [{ text: userText }] });
-      const boundedHistory = chatHistory.slice(-6);
+      const boundedHistory = chatHistory.slice(-4);
 
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+      // Targeting the active current model
+      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${API_KEY}`;
 
       try {
         const res = await fetch(endpoint, {
@@ -346,7 +350,7 @@ STYLE & AUDIO-FIRST DIRECTIVES:
         const data = await res.json();
         
         if (data.error) {
-          addLog(`Comms Error: ${data.error.message || "Invalid API configuration"}`, "gm");
+          addLog(`Comms Error: ${data.error.message || "API Error"}`, "gm");
           resetButton();
           return;
         }
@@ -391,7 +395,7 @@ STYLE & AUDIO-FIRST DIRECTIVES:
         addLog(spokenText, "gm");
         speakOutput(spokenText);
       } catch (err) {
-        addLog("Comms error connecting to neural server. Check network connection or API key.", "gm");
+        addLog("Comms error connecting to neural server.", "gm");
       } finally {
         resetButton();
       }
